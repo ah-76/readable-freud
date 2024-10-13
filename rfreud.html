@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReadableFreud.com</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital@0;1&family=Open+Sans:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body class="font-fira">
+    
+    <button id="hamburger-btn" class="hamburger">&#9776;</button>
+	  
+	  
+	  <div id="sidebar" class="sidebar-container">
+      
+
+		 
+		 <nav id="article-list" class="article-list-container"></nav>
+
+
+   <div class="font-size-switcher">
+        <span>A-</span>
+        <button class="font-size-decrease">-</button>
+        <button class="font-size-increase">+</button>
+        <span>+A</span>
+      </div>
+
+		 
+      <div class="theme-switcher">
+        <span>dark</span>
+        <label class="switch">
+          <input type="checkbox" id="theme-switch">
+          <span class="slider"></span>
+        </label>
+        <span>light</span>
+      </div>
+
+      <div class="font-switcher">
+        <span>font1</span>
+        <label class="switch">
+          <input type="checkbox" id="font-switch">
+          <span class="slider"></span>
+        </label>
+        <span>font2</span>
+      </div>
+
+   
+
+      <div class="paragraph-number-switcher">
+        <span>#off</span>
+        <label class="switch">
+          <input type="checkbox" id="paragraph-switch" checked>
+          <span class="slider"></span>
+        </label>
+        <span>#on</span>
+      </div>
+    </div>
+
+    <div id="main-content-wrapper">
+      <div id="main-content">
+        <div class="article-content" id="article-content">
+          <p></p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+
+
+document.getElementById('hamburger-btn').addEventListener('click', function() {
+    const sidebar = document.getElementById('sidebar');
+    const contentWrapper = document.getElementById('main-content-wrapper');
+    sidebar.classList.toggle('collapsed');
+    contentWrapper.classList.toggle('collapsed');
+});
+
+
+		 
+      async function loadArticleTitles() {
+        try {
+          const response = await fetch('articles.json');
+          const data = await response.json();
+          const articleList = document.getElementById('article-list');
+          articleList.innerHTML = '';
+
+          for (const filename of data.articles) {
+            const content = await fetch(`articles/${filename}`).then(res => res.text());
+            const title = content.split('\n')[0].trim();
+            const titleMatch = title.match(/^(.*)\((\d{4})\)$/);
+
+            const articleLink = document.createElement('a');
+            articleLink.href = '#';
+            articleLink.className = 'article-link';
+            articleLink.innerHTML = `
+              <span class="title">${titleMatch[1].trim()}</span>
+              <span class="year">${titleMatch[2]}</span>
+            `;
+            articleLink.onclick = function () {
+              loadArticle(filename, articleLink);
+              return false;
+            };
+            articleList.appendChild(articleLink);
+          }
+        } catch (error) {
+          console.error('Error loading article titles:', error);
+        }
+      }
+
+      function loadArticle(filename, clickedLink) {
+        fetch(`articles/${filename}`).then(response => response.text()).then(data => {
+          const lines = data.split('\n');
+          const title = lines.shift().trim();
+          const intro = lines.shift().trim();
+          const paragraphs = lines.join('\n').split(/\n\n/);
+
+          const paragraphSwitch = document.getElementById('paragraph-switch').checked;
+          let paragraphCounter = 1;
+
+          const numberedParagraphs = paragraphs.map((para) => {
+            if (para.trim().toLowerCase() === '<hr>' || para.trim() === '') {
+              return `<hr>`;
+            }
+
+            const paragraphNumberHtml = `<span class="paragraph-number" style="display: ${paragraphSwitch ? 'inline' : 'none'}">${paragraphCounter++}</span>`;
+
+            return `
+              <p>
+                ${para.trim()}
+                ${paragraphNumberHtml}
+              </p>
+            `;
+          }).join('');
+
+          // Remove 'active' class from all article links
+          const articleLinks = document.querySelectorAll('.article-link');
+          articleLinks.forEach(link => link.classList.remove('active'));
+
+          // Add 'active' class to the clicked link
+          clickedLink.classList.add('active');
+
+          const contentHtml = `<p class="intro-paragraph">${intro}</p>${numberedParagraphs}`;
+          document.getElementById('article-content').innerHTML = contentHtml;
+          document.getElementById('main-content').scrollTop = 0;
+        }).catch(error => console.error('Error loading article:', error));
+      }
+
+      document.getElementById('font-switch').addEventListener('change', function() {
+        if (this.checked) {
+          document.body.className = 'font-raleway';
+          document.getElementById('main-content').className = 'font-raleway';
+        } else {
+          document.body.className = 'font-fira';
+          document.getElementById('main-content').className = 'font-fira';
+        }
+      });
+
+      const styles = document.createElement('style');
+      styles.textContent = `
+        .font-fira {
+          font-family: 'Fira Sans', sans-serif;
+        }
+
+        .font-raleway {
+          font-family: 'Open Sans', sans-serif;
+        }
+      `;
+      document.head.appendChild(styles);
+
+      document.getElementById('paragraph-switch').addEventListener('change', function() {
+        const numbers = document.querySelectorAll('.paragraph-number');
+        numbers.forEach(number => {
+          number.style.display = this.checked ? 'inline' : 'none';
+        });
+      });
+
+      document.getElementById('theme-switch').addEventListener('change', function () {
+        if (this.checked) {
+          document.documentElement.classList.add('light-theme');
+        } else {
+          document.documentElement.classList.remove('light-theme');
+        }
+      });
+
+      document.querySelector('.font-size-increase').addEventListener('click', function() {
+        changeFontSize(1);
+      });
+
+      document.querySelector('.font-size-decrease').addEventListener('click', function() {
+        changeFontSize(-1);
+      });
+
+      function changeFontSize(change) {
+        const articleContent = document.getElementById('article-content');
+        const currentFontSize = parseFloat(window.getComputedStyle(articleContent).fontSize);
+        const newFontSize = currentFontSize + change;
+        articleContent.style.fontSize = newFontSize + 'px';
+      }
+
+      loadArticleTitles();
+
+document.addEventListener('mouseup', function() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;  // Early exit if there's no selection
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString();
+    if (selectedText.length > 0) {
+        const parentElement = range.startContainer.parentNode;
+
+        // Check if the selection's parent element is a highlight span
+        if (parentElement.tagName === 'SPAN' && parentElement.style.backgroundColor === 'black') {
+            // If already highlighted, revert to no style
+            const textNode = document.createTextNode(parentElement.textContent);
+            parentElement.parentNode.replaceChild(textNode, parentElement);
+        } else {
+            // If not highlighted, create a new span for the highlight
+            const span = document.createElement('span');
+            span.style.backgroundColor = 'black'; // Dark background for highlight
+            span.style.color = '#FFA756'; // Orange text for visibility
+            span.style.filter = 'brightness(85%)';
+			  range.surroundContents(span);
+        }
+        selection.removeAllRanges(); // Clear the selection
+    }
+});
+
+
+		 
+    </script>
+  </body>
+</html>
