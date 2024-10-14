@@ -1,3 +1,9 @@
+html {
+    -webkit-font-smoothing: antialiased; /* For WebKit browsers like Safari and Chrome */
+    -moz-osx-font-smoothing: grayscale; /* For Firefox on Mac OS */
+    text-rendering: optimizeLegibility; /* Improve text rendering by using kerning and optional ligatures */
+}
+
 body {
     display: flex;
     margin: 0;
